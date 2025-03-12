@@ -30,15 +30,15 @@ def get_args():
   parser.add_argument(
     "--server-addr",
     type=str,
-    default="15.164.166.78",
-    help="Address of the server (default AWS server)",
+    default="deepmodal.ai",
+    help="Address of the server (AWS-server=15.164.166.78, or deepmodal.ai)",
   )
 
   parser.add_argument(
     "--server-port",
-    type=int,
-    default=7000,
-    help="Port of the server",
+    type=str,
+    default=r"81/ws/",
+    help=r"Port of the server (AWS-port=7000, or :81/ws/",
   )
   
   parser.add_argument(
@@ -111,11 +111,12 @@ async def process_audio(websocket, audio_filename: str, client_code: int):
   results = await websocket.recv()
   elapsed_time = time.time() - start_time
   rtf = elapsed_time / wav_duration
-  print(f"{results}, RTF={rtf:.2f} on AWS EC2 t2.micro [1 vCPU, 1 GB]")
+  print(f"{results}, RTF={rtf:.2f}")
 
 async def run(server_addr: str, server_port: int, client_code: int, audio_files: List[str]):
   """Runs the WebSocket client to send audio files to the server."""
   uri = f"ws://{server_addr}:{server_port}"
+#uri = f"ws://deepmodal.ai:81/ws/"
   async with websockets.connect(uri) as websocket:
     for audio_filename in audio_files:
       await process_audio(websocket, audio_filename, client_code)
