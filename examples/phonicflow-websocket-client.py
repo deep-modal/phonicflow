@@ -116,7 +116,6 @@ async def process_audio(websocket, audio_filename: str, client_code: int):
 async def run(server_addr: str, server_port: int, client_code: int, audio_files: List[str]):
   """Runs the WebSocket client to send audio files to the server."""
   uri = f"ws://{server_addr}:{server_port}"
-#uri = f"ws://deepmodal.ai:81/ws/"
   async with websockets.connect(uri) as websocket:
     for audio_filename in audio_files:
       await process_audio(websocket, audio_filename, client_code)
