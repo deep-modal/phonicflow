@@ -47,6 +47,13 @@ def get_args():
     default=8000,
     help="Code of the server API",
   )
+  
+  parser.add_argument(
+    "--padding-length",
+    type=float,
+    default=0.0,
+    help="Noise padding length in seconds",
+  )
 
   parser.add_argument(
     "audio_files",
@@ -56,7 +63,7 @@ def get_args():
   )
   return parser.parse_args()
 
-def read_audio(audio_filename: str) -> Tuple[np.ndarray, int]:
+def read_audio(audio_filename: str, padding_length: float = 0.0) -> Tuple[np.ndarray, int]:
   """Read any audio format and resample to 8kHz mono."""
   target_sr = 8000
   
@@ -77,7 +84,22 @@ def read_audio(audio_filename: str) -> Tuple[np.ndarray, int]:
     if len(y) > max_samples:
       logging.warning(f"Demo supports up to 30 seconds, truncating to 30 seconds")
       y = y[:max_samples]
-    
+
+    if padding_length > 0.0:
+      noise_length = int(target_sr * padding_length)
+      # Calculate noise amplitude based on signal RMS
+      signal_rms = np.sqrt(np.mean(y**2))
+      noise_amplitude = signal_rms * 0.02  # Using 2% of signal RMS for noise
+
+      # Generate random noise for start and end padding
+      start_noise = np.random.normal(0, noise_amplitude, noise_length).astype(np.float32)
+      end_noise = np.random.normal(0, noise_amplitude, noise_length).astype(np.float32)
+
+      # Concatenate noise padding with original signal
+      y = np.concatenate([start_noise, y, end_noise])
+
+      logging.info(f"Added {padding_length} samples of random noise padding at beginning and end")
+
     return y, target_sr
     
   except Exception as e:
@@ -90,12 +112,12 @@ def encode_audio_data(client_code: int, samples: np.ndarray) -> bytes:
     struct.pack("<II", client_code, samples.size * 4) + samples.tobytes()
   )
 
-async def process_audio(websocket, audio_filename: str, client_code: int):
+async def process_audio(websocket, audio_filename: str, padding_length: float, client_code: int):
   """Processes a single audio file and sends it to the server."""
   logging.info(f"Processing {audio_filename}")
 
   # Read and resample audio
-  samples, sample_rate = read_audio(audio_filename)
+  samples, sample_rate = read_audio(audio_filename, padding_length)
   wav_duration = len(samples) / sample_rate
   assert isinstance(sample_rate, int)
   assert samples.dtype == np.float32, samples.dtype
@@ -104,6 +126,12 @@ async def process_audio(websocket, audio_filename: str, client_code: int):
   # Send audio data
   start_time = time.time()
   buf = encode_audio_data(client_code, samples)
+  
+  payload_len = 8192
+  while len(buf) > payload_len:
+    await websocket.send(buf[:payload_len])
+    buf = buf[payload_len:]
+
   if buf:
     await websocket.send(buf)
 
@@ -113,12 +141,13 @@ async def process_audio(websocket, audio_filename: str, client_code: int):
   rtf = elapsed_time / wav_duration
   print(f"{results}, RTF={rtf:.2f}")
 
-async def run(server_addr: str, server_port: int, client_code: int, audio_files: List[str]):
+async def run(server_addr: str, server_port: int, client_code: int, \
+              audio_files: List[str], padding_length: float):
   """Runs the WebSocket client to send audio files to the server."""
   uri = f"ws://{server_addr}:{server_port}"
   async with websockets.connect(uri) as websocket:
     for audio_filename in audio_files:
-      await process_audio(websocket, audio_filename, client_code)
+      await process_audio(websocket, audio_filename, padding_length, client_code)
         
     # Send termination signal
     await websocket.send("Done")
@@ -131,12 +160,14 @@ async def main():
   server_port = args.server_port
   client_code = args.client_code
   audio_files = args.audio_files
+  padding_length = args.padding_length
 
   await run(
     server_addr=server_addr,
     server_port=server_port,
     client_code=client_code,
     audio_files=audio_files,
+    padding_length=padding_length,
   )
 
 if __name__ == "__main__":
