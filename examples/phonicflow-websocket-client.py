@@ -38,7 +38,7 @@ def get_args():
     "--server-port",
     type=str,
     default=r"81/ws/",
-    help=r"Port of the server (AWS-port=7000, or :81/ws/",
+    help=r"Port of the server (AWS-port=7000, General=81/ws/, AICC=81/aicc/",
   )
   
   parser.add_argument(
