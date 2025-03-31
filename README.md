@@ -18,5 +18,10 @@ pip install websockets librosa
 python examples/phonicflow-websocket-client.py audio/phonecall-clip-1.wav audio/phonecall-clip-2.wav audio/youtube-clip-1.mp3
 ```
 
+AICC용 모델은 다음 포트로 평가해 볼수 있습니다.
+```
+python examples/phonicflow-websocket-client.py --server-port "81/aicc/" audio/phonecall-clip-1.wav audio/phonecall-clip-2.wav
+```
+
 ## 3. 문의
 Phrase Hint, API 기능 및 협업 관련한 사항은 딥모달(hchung@etri.re.kr)로 연락 주십시요.
